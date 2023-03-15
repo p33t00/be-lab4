@@ -16,7 +16,7 @@ const getAllUsers = async function() {
 }
 
 const insertUser = async function(args) {
-	return await __setter('INSERT INTO users (username, password) VALUES (?,?);', args);
+	return await __setter('INSERT INTO users (role, username, password) VALUES (?,?,?);', args);
 }
 
 const __getter = async (query, args) => {
@@ -35,9 +35,9 @@ const __getterAll = async (query, args) => {
 	});
 }
 
-const __setter = async function(query, {username, password}) {
+const __setter = async function(query, args) {
 	return await __promisify(function(resolve, reject) {
-		db.run(query, [username, password], function (err) {
+		db.run(query, args, function (err) {
 			if (err) { reject(err) } else { resolve(this) }
 		});
 	});

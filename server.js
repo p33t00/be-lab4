@@ -13,6 +13,8 @@ app.use(cors({ origin: '*' }));
 app.use(express.urlencoded({extended: false}));
 app.use(express.json());
 
+
+const USER_SESSION_DURATION = 120
 var currentKey = ''
 var currentPassword = ''
 var userSession;
@@ -22,7 +24,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/start', authMiddleware(), (req, res) => {
-	res.render('pages/start.ejs', {username: req.username});
+	res.render('pages/start.ejs', {sessionLen: USER_SESSION_DURATION});
 });
 
 app.get('/admin', authMiddleware(['admin']), async (req, res) => {
@@ -36,7 +38,7 @@ app.get('/teacher', authMiddleware(['admin', 'teacher']), async (req, res) => {
 
 app.get('/student/:id', authMiddleware(['admin', 'teacher', 'student']), async (req, res) => {
 	const studIdParam = req.params.id;
-	if (userSession.role === 'student' && userSession.id != studIdParam) res.sendStatus(401);
+	if (userSession.role === 'student' && userSession.id != studIdParam) return res.sendStatus(401);
 
 	const student = await db.getStudent(studIdParam);
 
@@ -64,7 +66,7 @@ app.post('/login', async (req, res) => {
 		const check = await bcrypt.compare(password, userSession.password);
 
 		if (check) {
-			currentKey = jwt.sign({password: password}, process.env.TOKEN, {expiresIn: 60})
+			currentKey = jwt.sign({password: password}, process.env.TOKEN, {expiresIn: USER_SESSION_DURATION})
 			currentPassword = password
 
 			res.method = 'GET'
@@ -84,6 +86,7 @@ app.get('/register', async(req, res) => {
 
 app.post('/register', async (req, res) => {
 	try {
+		const role = req.body.role
 		const username = req.body.username
 		const password = req.body.password
 
@@ -92,7 +95,7 @@ app.post('/register', async (req, res) => {
 		}
 		
 		const passHash = await bcrypt.hash(password, 10)
-		const resp = await db.insertUser({'username':username, 'password':passHash})
+		const resp = await db.insertUser([role, username, passHash])
 
 		if (resp.changes === 1) { res.redirect('/login') }
 		else { res.sendStatus(500) }

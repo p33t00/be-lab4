@@ -30,6 +30,18 @@ app.get('/admin', authMiddleware(['admin']), async (req, res) => {
 	res.render('pages/admin.ejs', {users: users})
 });
 
+app.get('/teacher', authMiddleware(['admin', 'teacher']), async (req, res) => {
+	res.render('pages/teacher.ejs')
+});
+
+app.get('/student/:id', authMiddleware(['admin', 'teacher', 'student']), async (req, res) => {
+	const studIdParam = req.params.id;
+	if (userSession.role === 'student' && userSession.id != studIdParam) res.sendStatus(401);
+
+	const student = await db.getUserById(studIdParam)
+	res.render('pages/student.ejs', {student: student})
+});
+
 app.get('/login', (req, res) => {
 	res.render('pages/login.ejs')
 });

@@ -14,7 +14,7 @@ app.use(express.urlencoded({extended: false}));
 app.use(express.json());
 
 
-const USER_SESSION_DURATION = 120
+const USER_SESSION_DURATION = 1200
 var currentKey = ''
 var currentPassword = ''
 var userSession;

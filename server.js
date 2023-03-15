@@ -15,6 +15,7 @@ app.use(express.json());
 
 var currentKey = ''
 var currentPassword = ''
+var userSession;
 
 app.get('/', authenticateToken, (req, res) => {
 	res.redirect('/start')
@@ -24,7 +25,7 @@ app.get('/start', authenticateToken, (req, res) => {
 	res.render('pages/start.ejs', {username: req.username})
 });
 
-app.get('/admin', [authenticateToken, authorizationCheck], async (req, res) => {
+app.get('/admin', [authenticateToken, authorizationMiddleware(['admin'])], async (req, res) => {
 	const users = await db.getAllUsers();
 	res.render('pages/admin.ejs', {users: users})
 });
@@ -38,14 +39,14 @@ app.post('/login', async (req, res) => {
 		const { username, password } = req.body
 		const passHash = await bcrypt.hash(password, 10)
 		// undefined - if no record found
-		const user = await db.getUser(username)
+		userSession = await db.getUser(username)
 
-		if (user === undefined) {
+		if (userSession === undefined) {
 			failedLoginAttempt(res)
 			return
 		}
 
-		const check = await bcrypt.compare(password, user.password);
+		const check = await bcrypt.compare(password, userSession.password);
 
 		if (check) {
 			currentKey = jwt.sign({password: password}, process.env.TOKEN, {expiresIn: 60})
@@ -99,14 +100,20 @@ const failedLoginAttempt = (res) => {
 	res.render('pages/fail.ejs')
 }
 
-async function authenticateToken(req, res, next) {
+function authenticateToken(req, res, next) {
 	jwt.verify(currentKey, process.env.TOKEN, (err, payload) => {
 		if (err) { res.redirect('/login') }
 		else { next() }
 	})
 }
 
-async function authorizationCheck(req, res, next) {
-	console.log("authorizationCheck")
-	next()	
+function authorizationMiddleware(roles) {
+	return (req, res, next) => authorizationCheck(roles, req, res, next)
+}
+
+function authorizationCheck(roles, req, res, next) {
+	console.log('roles', roles)
+	console.log(userSession)
+	if (roles.indexOf(userSession.role) > -1) next()
+	else res.sendStatus(401)
 }

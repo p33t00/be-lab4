@@ -17,15 +17,15 @@ var currentKey = ''
 var currentPassword = ''
 var userSession;
 
-app.get('/', authenticateToken, (req, res) => {
+app.get('/', authMiddleware(), (req, res) => {
 	res.redirect('/start')
 });
 
-app.get('/start', authenticateToken, (req, res) => {
+app.get('/start', authMiddleware(), (req, res) => {
 	res.render('pages/start.ejs', {username: req.username})
 });
 
-app.get('/admin', [authenticateToken, authorizationMiddleware(['admin'])], async (req, res) => {
+app.get('/admin', authMiddleware(['admin']), async (req, res) => {
 	const users = await db.getAllUsers();
 	res.render('pages/admin.ejs', {users: users})
 });
@@ -100,20 +100,16 @@ const failedLoginAttempt = (res) => {
 	res.render('pages/fail.ejs')
 }
 
-function authenticateToken(req, res, next) {
+function authMiddleware(roles = []) {
+	return (req, res, next) => authenticateToken(roles, req, res, next)
+}
+
+function authenticateToken(roles, req, res, next) {
 	jwt.verify(currentKey, process.env.TOKEN, (err, payload) => {
 		if (err) { res.redirect('/login') }
-		else { next() }
 	})
-}
 
-function authorizationMiddleware(roles) {
-	return (req, res, next) => authorizationCheck(roles, req, res, next)
-}
+	if (roles.length && roles.indexOf(userSession.role) < 0) { res.sendStatus(401) }
 
-function authorizationCheck(roles, req, res, next) {
-	console.log('roles', roles)
-	console.log(userSession)
-	if (roles.indexOf(userSession.role) > -1) next()
-	else res.sendStatus(401)
+	next();
 }

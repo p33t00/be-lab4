@@ -7,6 +7,10 @@ const getUser = async function(username) {
 	return await __getter('SELECT * FROM users WHERE username = ? LIMIT 1;', [username])
 }
 
+const getUserById = async function(id) {
+	return await __getter('SELECT * FROM users WHERE role = "student" AND id = ? LIMIT 1;', [id])
+}
+
 const getStudent = async function(id) {
 	return await __getter('SELECT * FROM users WHERE role = "student" AND id = ? LIMIT 1;', [id])
 }
@@ -52,4 +56,4 @@ const initDB = () => {
 const __promisify = (qFunc) => new Promise(function(resolve, reject) { qFunc(resolve, reject) });
 
 
-module.exports = {getUser, getAllUsers, getStudent, insertUser, initDB}
+module.exports = {getUser, getAllUsers, getStudent, getUserById, insertUser, initDB}

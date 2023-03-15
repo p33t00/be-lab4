@@ -47,6 +47,17 @@ app.get('/student/:id', authMiddleware(['admin', 'teacher', 'student']), async (
 	res.render('pages/student.ejs', {student: student});
 });
 
+app.get('/users/:id', authMiddleware([]), async (req, res) => {
+	const userIdParam = req.params.id;
+	if (userSession.id != userIdParam) return res.sendStatus(401);
+
+	const user = await db.getUserById(userIdParam);
+
+	if (!user) return res.sendStatus(404);
+
+	res.render('pages/user.ejs', {user: user});
+});
+
 app.get('/login', (req, res) => {
 	res.render('pages/login.ejs')
 });

@@ -17,17 +17,17 @@ var currentKey = ''
 var currentPassword = ''
 var userSession;
 
-app.get('/', authMiddleware(), (req, res) => {
-	res.redirect('/start')
+app.get('/', (req, res) => {
+	return res.redirect('/start');
 });
 
 app.get('/start', authMiddleware(), (req, res) => {
-	res.render('pages/start.ejs', {username: req.username})
+	res.render('pages/start.ejs', {username: req.username});
 });
 
 app.get('/admin', authMiddleware(['admin']), async (req, res) => {
 	const users = await db.getAllUsers();
-	res.render('pages/admin.ejs', {users: users})
+	res.render('pages/admin.ejs', {users: users});
 });
 
 app.get('/teacher', authMiddleware(['admin', 'teacher']), async (req, res) => {
@@ -38,8 +38,11 @@ app.get('/student/:id', authMiddleware(['admin', 'teacher', 'student']), async (
 	const studIdParam = req.params.id;
 	if (userSession.role === 'student' && userSession.id != studIdParam) res.sendStatus(401);
 
-	const student = await db.getUserById(studIdParam)
-	res.render('pages/student.ejs', {student: student})
+	const student = await db.getStudent(studIdParam);
+
+	if (!student) return res.sendStatus(404);
+
+	res.render('pages/student.ejs', {student: student});
 });
 
 app.get('/login', (req, res) => {
@@ -118,10 +121,8 @@ function authMiddleware(roles = []) {
 
 function authenticateToken(roles, req, res, next) {
 	jwt.verify(currentKey, process.env.TOKEN, (err, payload) => {
-		if (err) { res.redirect('/login') }
+		if (err) { return res.redirect('/login') }
+		else if (roles.length && roles.indexOf(userSession.role) < 0) { return res.sendStatus(401) }
+		else { next(); }
 	})
-
-	if (roles.length && roles.indexOf(userSession.role) < 0) { res.sendStatus(401) }
-
-	next();
 }

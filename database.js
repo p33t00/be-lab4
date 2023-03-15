@@ -8,7 +8,7 @@ const getUser = async function(username) {
 }
 
 const getUserById = async function(id) {
-	return await __getter('SELECT * FROM users WHERE role = "student" AND id = ? LIMIT 1;', [id])
+	return await __getter('SELECT * FROM users WHERE id = ? LIMIT 1;', [id])
 }
 
 const getStudent = async function(id) {

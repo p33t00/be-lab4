@@ -81,7 +81,7 @@ app.post('/login', async (req, res) => {
 			currentPassword = password
 
 			res.method = 'GET'
-			res.redirect('/start');
+			res.redirect('/users/'+userSession.id);
 		} else {
 			failedLoginAttempt(res)
 		}

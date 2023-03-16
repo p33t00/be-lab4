@@ -119,9 +119,9 @@ app.all('*', (req, res) => {
 	res.sendStatus(404);
 })
 
-app.listen(8888, () => {
+app.listen(8000, () => {
 	db.initDB();
-	console.log('Server listening on container port: ' + 8888);
+	console.log('Server listening on container port: ' + 8000);
 });
 
 const failedLoginAttempt = (res) => {

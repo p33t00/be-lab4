@@ -3,20 +3,17 @@ const app = express();
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 require('dotenv').config();
 
 const db = require('./database.js');
 
 app.set('view-engine', 'ejs');
 
+app.use(cookieParser());
 app.use(cors({ origin: '*' }));
 app.use(express.urlencoded({extended: false}));
-app.use(express.json());
 
-
-const USER_SESSION_DURATION = 1200
-var currentKey = ''
-var currentPassword = ''
 var userSession;
 
 app.get('/', (req, res) => {
@@ -24,7 +21,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/start', authMiddleware(), (req, res) => {
-	res.render('pages/start.ejs', {sessionLen: USER_SESSION_DURATION});
+	res.render('pages/start.ejs');
 });
 
 app.get('/admin', authMiddleware(['admin']), async (req, res) => {
@@ -32,14 +29,15 @@ app.get('/admin', authMiddleware(['admin']), async (req, res) => {
 	res.render('pages/admin.ejs', {users: users});
 });
 
-app.get('/teacher', authMiddleware(['admin', 'teacher']), async (req, res) => {
+app.get('/teacher', authMiddleware(['admin', 'teacher']), (req, res) => {
 	res.render('pages/teacher.ejs')
 });
 
-app.get('/student/:id', authMiddleware(['admin', 'teacher', 'student']), async (req, res) => {
-	const studIdParam = req.params.id;
+app.get('/students/:id', authMiddleware(['admin', 'teacher', 'student']), async (req, res) => {
+	const studIdParam = Number(req.params.id);
+	
 	if (userSession.role === 'student' && userSession.id != studIdParam) return res.sendStatus(401);
-
+	
 	const student = await db.getStudent(studIdParam);
 
 	if (!student) return res.sendStatus(404);
@@ -48,7 +46,7 @@ app.get('/student/:id', authMiddleware(['admin', 'teacher', 'student']), async (
 });
 
 app.get('/users/:id', authMiddleware([]), async (req, res) => {
-	const userIdParam = req.params.id;
+	const userIdParam = Number(req.params.id);
 	if (userSession.id != userIdParam) return res.sendStatus(401);
 
 	const user = await db.getUserById(userIdParam);
@@ -65,23 +63,16 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
 	try {
 		const { username, password } = req.body
-		const passHash = await bcrypt.hash(password, 10)
 		// undefined - if no record found
-		userSession = await db.getUser(username)
-
-		if (userSession === undefined) {
-			failedLoginAttempt(res)
-			return
-		}
-
-		const check = await bcrypt.compare(password, userSession.password);
+		const user = await db.getUser(username)
+		const check = await bcrypt.compare(password, user.password);
 
 		if (check) {
-			currentKey = jwt.sign({password: password}, process.env.TOKEN, {expiresIn: USER_SESSION_DURATION})
-			currentPassword = password
+			const token = jwt.sign(user, process.env.TOKEN)
+			res.cookie('jwt', token, {httpOnly: true, maxAge: 86400000})
 
 			res.method = 'GET'
-			res.redirect('/users/'+userSession.id);
+			res.redirect('/users/'+user.id);
 		} else {
 			failedLoginAttempt(res)
 		}
@@ -106,9 +97,9 @@ app.post('/register', async (req, res) => {
 		}
 		
 		const passHash = await bcrypt.hash(password, 10)
-		const resp = await db.insertUser([role, username, passHash])
+		const status = await db.insertUser([role, username, passHash])
 
-		if (resp.changes === 1) { res.redirect('/login') }
+		if (status.changes === 1) { res.redirect('/login') }
 		else { res.sendStatus(500) }
 	} catch(err) {
 		console.error('Error while inserting a new user: ' + err);
@@ -119,9 +110,9 @@ app.all('*', (req, res) => {
 	res.sendStatus(404);
 })
 
-app.listen(8000, () => {
+app.listen(8888, () => {
 	db.initDB();
-	console.log('Server listening on container port: ' + 8000);
+	console.log('Server listening on container port: ' + 8888);
 });
 
 const failedLoginAttempt = (res) => {
@@ -134,9 +125,15 @@ function authMiddleware(roles = []) {
 }
 
 function authenticateToken(roles, req, res, next) {
-	jwt.verify(currentKey, process.env.TOKEN, (err, payload) => {
+	jwt.verify(req.cookies.jwt, process.env.TOKEN, (err, user) => {
+		console.log(user)
 		if (err) { return res.redirect('/login') }
-		else if (roles.length && roles.indexOf(userSession.role) < 0) { return res.sendStatus(401) }
-		else { next(); }
+		else if (roles.length && roles.indexOf(user.role) < 0) {
+			return res.sendStatus(401)
+		}
+		else {
+			userSession = user;
+			next();
+		}
 	})
 }

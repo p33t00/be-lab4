@@ -56,11 +56,11 @@ app.get('/users/:id', authMiddleware([]), async (req, res) => {
 	res.render('pages/user.ejs', {user: user});
 });
 
-app.get('/login', (req, res) => {
-	res.render('pages/login.ejs')
+app.get('/identify', (req, res) => {
+	res.render('pages/identify.ejs')
 });
 
-app.post('/login', async (req, res) => {
+app.post('/identify', async (req, res) => {
 	try {
 		const { username, password } = req.body
 		// undefined - if no record found
@@ -99,7 +99,7 @@ app.post('/register', async (req, res) => {
 		const passHash = await bcrypt.hash(password, 10)
 		const status = await db.insertUser([role, username, passHash])
 
-		if (status.changes === 1) { res.redirect('/login') }
+		if (status.changes === 1) { res.redirect('/identify') }
 		else { res.sendStatus(500) }
 	} catch(err) {
 		console.error('Error while inserting a new user: ' + err);
@@ -127,7 +127,7 @@ function authMiddleware(roles = []) {
 function authenticateToken(roles, req, res, next) {
 	jwt.verify(req.cookies.jwt, process.env.TOKEN, (err, user) => {
 		console.log(user)
-		if (err) { return res.redirect('/login') }
+		if (err) { return res.redirect('/identify') }
 		else if (roles.length && roles.indexOf(user.role) < 0) {
 			return res.sendStatus(401)
 		}
